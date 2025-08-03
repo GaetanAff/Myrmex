@@ -2,36 +2,235 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Myrmex</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Myrmex - Planificateur de Tâches</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="chat-container">
-    <div id="chat-box" class="chat-box"></div>
-    <form id="chat-form">
-      <input type="text" id="user-input" placeholder="Message..." required>
-      <button>Envoyer</button>
-    </form>
+  <div class="container">
+    <!-- Section de gauche: Input et résultats -->
+    <div class="left-panel">
+      <div class="header">
+        <h2>🐜 Myrmex - Découpage de Tâches</h2>
+      </div>
+      
+      <form id="planning-form" class="input-section">
+        <textarea id="user-input" placeholder="Entrez votre requête complexe ici..." required></textarea>
+        <button type="submit" id="analyze-btn">
+          <span id="btn-text">📋 Analyser et Découper</span>
+          <span id="loading" style="display: none;">⏳ Analyse en cours...</span>
+        </button>
+      </form>
+      
+      <div id="summary" class="summary-section" style="display: none;">
+        <h3>📊 Résumé du Découpage</h3>
+        <div class="stats">
+          <div class="stat-item">
+            <span class="stat-label">Total des tâches:</span>
+            <span id="total-count" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Réflexion:</span>
+            <span id="think-count" class="stat-value">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Recherche:</span>
+            <span id="research-count" class="stat-value">0</span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="raw-response" class="raw-section" style="display: none;">
+        <h3>🤖 Réponse Brute d'Ollama</h3>
+        <pre id="raw-text"></pre>
+      </div>
+    </div>
+    
+    <!-- Section de droite: Variables et tâches -->
+    <div class="right-panel">
+      <div class="variables-header">
+        <h3>🔧 Variables Générées</h3>
+        <div class="toggle-buttons">
+          <button id="show-variables" class="toggle-btn active">Variables</button>
+          <button id="show-tasks" class="toggle-btn">Liste des Tâches</button>
+        </div>
+      </div>
+      
+      <!-- Vue Variables -->
+      <div id="variables-view" class="variables-container">
+        <div id="no-variables" class="empty-state">
+          <p>🔍 Aucune variable générée</p>
+          <small>Entrez une requête pour voir le découpage en variables</small>
+        </div>
+        <div id="variables-list"></div>
+      </div>
+      
+      <!-- Vue Liste des Tâches -->
+      <div id="tasks-view" class="tasks-container" style="display: none;">
+        <div id="no-tasks" class="empty-state">
+          <p>📝 Aucune tâche générée</p>
+          <small>Entrez une requête pour voir le découpage en tâches</small>
+        </div>
+        <div id="tasks-list"></div>
+      </div>
+    </div>
   </div>
-  <script>
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('user-input');
-    const chatBox = document.getElementById('chat-box');
 
-    form.onsubmit = async e => {
-      e.preventDefault();
-      const msg = input.value;
-      chatBox.innerHTML += `<div class="user-msg"><b>Vous:</b> ${msg}</div>`;
-      input.value = "";
-      const res = await fetch('/ask', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: msg})
-      });
-      const data = await res.json();
-      chatBox.innerHTML += `<div class="bot-msg"><b>Ollama:</b> ${data.reply}</div>`;
-      chatBox.scrollTop = chatBox.scrollHeight;
+  <script>
+    const form = document.getElementById('planning-form');
+    const input = document.getElementById('user-input');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const btnText = document.getElementById('btn-text');
+    const loading = document.getElementById('loading');
+    
+    // Éléments d'affichage
+    const summary = document.getElementById('summary');
+    const totalCount = document.getElementById('total-count');
+    const thinkCount = document.getElementById('think-count');
+    const researchCount = document.getElementById('research-count');
+    const rawResponse = document.getElementById('raw-response');
+    const rawText = document.getElementById('raw-text');
+    
+    // Variables et tâches
+    const variablesView = document.getElementById('variables-view');
+    const tasksView = document.getElementById('tasks-view');
+    const variablesList = document.getElementById('variables-list');
+    const tasksList = document.getElementById('tasks-list');
+    const noVariables = document.getElementById('no-variables');
+    const noTasks = document.getElementById('no-tasks');
+    
+    // Boutons de navigation
+    const showVariables = document.getElementById('show-variables');
+    const showTasks = document.getElementById('show-tasks');
+    
+    // Navigation entre vues
+    showVariables.onclick = () => {
+      showVariables.classList.add('active');
+      showTasks.classList.remove('active');
+      variablesView.style.display = 'block';
+      tasksView.style.display = 'none';
     };
+    
+    showTasks.onclick = () => {
+      showTasks.classList.add('active');
+      showVariables.classList.remove('active');
+      variablesView.style.display = 'none';
+      tasksView.style.display = 'block';
+    };
+    
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const message = input.value.trim();
+      if (!message) return;
+      
+      // UI de chargement
+      btnText.style.display = 'none';
+      loading.style.display = 'inline';
+      analyzeBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/plan', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({message})
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+          alert('Erreur: ' + data.error);
+          return;
+        }
+        
+        // Afficher le résumé
+        summary.style.display = 'block';
+        totalCount.textContent = data.total_tasks || 0;
+        thinkCount.textContent = data.deep_think_count || 0;
+        researchCount.textContent = data.deep_research_count || 0;
+        
+        // Afficher la réponse brute
+        if (data.raw_response) {
+          rawResponse.style.display = 'block';
+          rawText.textContent = data.raw_response;
+        }
+        
+        // Afficher les variables
+        displayVariables(data.task_variables || {});
+        
+        // Afficher les tâches
+        displayTasks(data.tasks || []);
+        
+      } catch (error) {
+        alert('Erreur de communication: ' + error.message);
+      } finally {
+        // Restaurer l'UI
+        btnText.style.display = 'inline';
+        loading.style.display = 'none';
+        analyzeBtn.disabled = false;
+      }
+    };
+    
+    function displayVariables(taskVariables) {
+      const hasVariables = Object.keys(taskVariables).length > 0;
+      
+      if (!hasVariables) {
+        noVariables.style.display = 'block';
+        variablesList.innerHTML = '';
+        return;
+      }
+      
+      noVariables.style.display = 'none';
+      variablesList.innerHTML = '';
+      
+      Object.entries(taskVariables).forEach(([varName, taskData]) => {
+        const varDiv = document.createElement('div');
+        varDiv.className = `variable-item ${taskData.type}`;
+        
+        varDiv.innerHTML = `
+          <div class="variable-header">
+            <span class="variable-name">${varName}</span>
+            <span class="variable-type ${taskData.type}">${taskData.type}</span>
+          </div>
+          <div class="variable-content">
+            <p class="variable-description">${taskData.description}</p>
+            <div class="variable-status">
+              <span class="status-badge ${taskData.status}">${taskData.status}</span>
+            </div>
+          </div>
+        `;
+        
+        variablesList.appendChild(varDiv);
+      });
+    }
+    
+    function displayTasks(tasks) {
+      const hasTasks = tasks.length > 0;
+      
+      if (!hasTasks) {
+        noTasks.style.display = 'block';
+        tasksList.innerHTML = '';
+        return;
+      }
+      
+      noTasks.style.display = 'none';
+      tasksList.innerHTML = '';
+      
+      tasks.forEach((task, index) => {
+        const taskDiv = document.createElement('div');
+        taskDiv.className = `task-item ${task.type}`;
+        
+        taskDiv.innerHTML = `
+          <div class="task-header">
+            <span class="task-number">#${index + 1}</span>
+            <span class="task-id">${task.id}</span>
+            <span class="task-type ${task.type}">${task.type}</span>
+          </div>
+          <p class="task-description">${task.description}</p>
+        `;
+        
+        tasksList.appendChild(taskDiv);
+      });
+    }
   </script>
 </body>
 </html>
