@@ -12,6 +12,18 @@ Myrmex vise à créer un backend léger capable d’orchestrer un ensemble d’a
 
 ---
 
+## 🔧 Installation
+
+```bash
+git clone https://github.com/GaetanAff/Myrmex.git
+cd Myrmex
+pip install -r requirements.txt
+```
+
+> ⚠️ Assurez-vous d’avoir **Python 3.9+** installé ainsi qu’un environnement avec **Ollama** configuré localement.
+
+---
+
 ## 📦 Architecture et Fonctionnalités
 
 ### 1. 🧠 Backend minimal
@@ -101,4 +113,12 @@ Myrmex vise à créer un backend léger capable d’orchestrer un ensemble d’a
 * Architecture orientée **agents autonomes**
 * Communication via **CLI/API simples**
 
-Souhaite-tu aussi une version anglaise, ou un `requirements.txt`/`pyproject.toml` pour accompagner ce README ?
+
+
+
+
+
+
+
+
+
