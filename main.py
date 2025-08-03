@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import json
+import re
 
 app = Flask(__name__)
 
@@ -10,6 +11,18 @@ MODEL_NAME = "gemma3:1b"  # à adapter selon le modèle installé
 @app.route('/')
 def index():
     return render_template('index.html')
+
+def extract_tasks(text: str):
+    """Return a list of tasks extracted from an Ollama response."""
+    try:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            return []
+        data = json.loads(match.group())
+        return data.get("tasks", [])
+    except Exception:
+        return []
+
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -29,22 +42,26 @@ def ask():
         "prompt": plan_prompt,
         "stream": False
     }
-    plan_response = requests.post(OLLAMA_API_URL, json=planning_payload)
     tasks = []
-    if plan_response.ok:
-        try:
-            tasks = json.loads(plan_response.json().get("response", "{}"))
-            tasks = tasks.get("tasks", [])
-        except json.JSONDecodeError:
-            tasks = []
+    try:
+        plan_response = requests.post(OLLAMA_API_URL, json=planning_payload)
+        if plan_response.ok:
+            text = plan_response.json().get("response", "")
+            tasks = extract_tasks(text)
+    except requests.RequestException:
+        pass
 
     payload = {
         "model": MODEL_NAME,
         "prompt": user_input,
         "stream": False
     }
-    response = requests.post(OLLAMA_API_URL, json=payload)
-    reply = response.json().get("response", "Erreur de réponse.")
+    try:
+        response = requests.post(OLLAMA_API_URL, json=payload)
+        reply = response.json().get("response", "Erreur de réponse.")
+    except requests.RequestException:
+        reply = "Erreur: impossible de joindre le modèle."
+
     return jsonify({"reply": reply, "tasks": tasks})
 
 if __name__ == '__main__':

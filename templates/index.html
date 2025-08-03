@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Myrmex</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <div class="chat-container">
@@ -35,7 +35,7 @@
 
       const tasksDiv = document.getElementById('tasks');
       tasksDiv.innerHTML = '';
-      if (data.tasks) {
+      if (Array.isArray(data.tasks)) {
         data.tasks.forEach(task => {
           tasksDiv.innerHTML += `<div class="task ${task.type}"><b>${task.id}</b>: ${task.description}</div>`;
         });
