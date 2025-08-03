@@ -8,6 +8,7 @@
 <body>
   <div class="chat-container">
     <div id="chat-box" class="chat-box"></div>
+    <div id="tasks" class="tasks"></div>
     <form id="chat-form">
       <input type="text" id="user-input" placeholder="Message..." required>
       <button>Envoyer</button>
@@ -31,6 +32,14 @@
       const data = await res.json();
       chatBox.innerHTML += `<div class="bot-msg"><b>Ollama:</b> ${data.reply}</div>`;
       chatBox.scrollTop = chatBox.scrollHeight;
+
+      const tasksDiv = document.getElementById('tasks');
+      tasksDiv.innerHTML = '';
+      if (data.tasks) {
+        data.tasks.forEach(task => {
+          tasksDiv.innerHTML += `<div class="task ${task.type}"><b>${task.id}</b>: ${task.description}</div>`;
+        });
+      }
     };
   </script>
 </body>
