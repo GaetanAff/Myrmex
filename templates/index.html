@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Myrmex</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="chat-container">
+    <div id="chat-box" class="chat-box"></div>
+    <form id="chat-form">
+      <input type="text" id="user-input" placeholder="Message..." required>
+      <button>Envoyer</button>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('user-input');
+    const chatBox = document.getElementById('chat-box');
+
+    form.onsubmit = async e => {
+      e.preventDefault();
+      const msg = input.value;
+      chatBox.innerHTML += `<div class="user-msg"><b>Vous:</b> ${msg}</div>`;
+      input.value = "";
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: msg})
+      });
+      const data = await res.json();
+      chatBox.innerHTML += `<div class="bot-msg"><b>Ollama:</b> ${data.reply}</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+  </script>
+</body>
+</html>
